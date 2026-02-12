@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIQQZR7 WEBOOK STAFF</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        body {
+            background: #0a0a0a;
+            padding: 20px;
+            color: #0f0;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #111;
+            border: 2px solid #f0f;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 30px #f0f;
+        }
+        h1 {
+            text-align: center;
+            color: #f0f;
+            text-shadow: 0 0 10px #f0f;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            color: #0ff;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            background: #000;
+            border: 1px solid #0ff;
+            color: #0f0;
+            border-radius: 5px;
+        }
+        .btn {
+            padding: 12px 25px;
+            background: #000;
+            color: #0ff;
+            border: 2px solid #0ff;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            border-radius: 5px;
+        }
+        .btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 20px #0ff;
+        }
+        .log {
+            background: #000;
+            border: 1px solid #f0f;
+            padding: 15px;
+            height: 200px;
+            overflow-y: scroll;
+            margin-top: 20px;
+            color: #0f0;
+        }
+        .danger {
+            border-color: #f00;
+            color: #f00;
+        }
+        .success {
+            color: #0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FIQQZR7 WEBOOK STAFF</h1>
+        
+        <!-- WEBHOOK URL -->
+        <div class="input-group">
+            <label>🔗 DISCORD WEBHOOK URL</label>
+            <input type="url" id="webhookUrl" placeholder="https://discord.com/api/webhooks/...">
+        </div>
+
+        <!-- MESSAGE -->
+        <div class="input-group">
+            <label>💬 MESSAGE</label>
+            <textarea id="messageContent" rows="3">@everyone FIQQZR7 WAS HERE 🔥</textarea>
+        </div>
+
+        <!-- IMAGE URL (OPTIONAL) -->
+        <div class="input-group">
+            <label>🖼️ IMAGE URL (Optional - Akan jadi embed)</label>
+            <input type="url" id="imageUrl" placeholder="https://i.imgur.com/example.jpg">
+        </div>
+
+        <!-- VIDEO URL (OPTIONAL) -->
+        <div class="input-group">
+            <label>🎥 VIDEO URL (Optional - Akan jadi embed)</label>
+            <input type="url" id="videoUrl" placeholder="https://example.com/video.mp4">
+            <small style="color: #faa;">⚠️ Discord embed video kena < 8MB & format MP4/MOV/WebM</small>
+        </div>
+
+        <!-- SCHEDULER SETTINGS -->
+        <div style="border: 1px solid #0ff; padding: 15px; margin: 20px 0;">
+            <h3 style="color: #0ff;">⏰ AUTO SCHEDULER</h3>
+            
+            <div class="input-group">
+                <label>🕐 JAM (24h format)</label>
+                <input type="time" id="scheduledTime" value="12:00">
+            </div>
+
+            <div class="input-group">
+                <label>🔄 REPEAT EVERY (MINUTES) - 0 untuk sekali je</label>
+                <input type="number" id="repeatMinutes" min="0" max="1440" value="0">
+            </div>
+
+            <div id="countdownDisplay" style="color: #ff0; margin-top: 10px; font-size: 1.2rem;">
+                ⏳ Scheduler: OFF
+            </div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn" onclick="sendNow()">🚀 SEND NOW</button>
+            <button class="btn" onclick="startScheduler()">⏰ START SCHEDULER</button>
+            <button class="btn danger" onclick="stopScheduler()">🛑 STOP SCHEDULER</button>
+            <button class="btn" onclick="clearLog()">🧹 CLEAR LOG</button>
+        </div>
+
+        <!-- EXECUTION LOG -->
+        <div class="log" id="log">
+            [SYSTEM] FIQQZR7 Webhook Scheduler Ready<br>
+            [SYSTEM] Set masa & klik START SCHEDULER<br>
+        </div>
+    </div>
+
+    <script>
+        // ========== FIQQZR7 WEBHOOK SCHEDULER ENGINE ==========
+        let schedulerInterval = null;
+        let nextRunTime = null;
+        let countdownInterval = null;
+
+        function addLog(message, type = '') {
+            const log = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}<br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '[SYSTEM] Log cleared.<br>';
+            addLog('Ready for new schedule');
+        }
+
+        // ========== SEND WEBHOOK ==========
+        async function sendWebhook() {
+            const webhookUrl = document.getElementById('webhookUrl').value.trim();
+            const message = document.getElementById('messageContent').value.trim();
+            const imageUrl = document.getElementById('imageUrl').value.trim();
+            const videoUrl = document.getElementById('videoUrl').value.trim();
+
+            if (!webhookUrl) {
+                addLog('❌ ERROR: Webhook URL wajib diisi!', 'error');
+                return false;
+            }
+
+            // Payload untuk Discord Webhook
+            const payload = {
+                content: message || '(no message)',
+                embeds: []
+            };
+
+            // Tambah embed kalau ada image/video
+            if (imageUrl || videoUrl) {
+                const embed = {};
+                if (imageUrl) embed.image = { url: imageUrl };
+                if (videoUrl) {
+                    embed.video = { url: videoUrl };
+                    embed.description = `🎥 Video: ${videoUrl}`;
+                }
+                payload.embeds.push(embed);
+            }
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    addLog('✅ SUCCESS: Webhook sent!');
+                    if (imageUrl) addLog(`   🖼️ Image: ${imageUrl.substring(0, 50)}...`);
+                    if (videoUrl) addLog(`   🎥 Video: ${videoUrl.substring(0, 50)}...`);
+                    return true;
+                } else {
+                    addLog(`❌ ERROR: HTTP ${response.status} - ${response.statusText}`);
+                    return false;
+                }
+            } catch (error) {
+                addLog(`❌ ERROR: ${error.message}`);
+                return false;
+            }
+        }
+
+        // ========== SEND NOW ==========
+        function sendNow() {
+            sendWebhook();
+        }
+
+        // ========== START SCHEDULER ==========
+        function startScheduler() {
+            // Stop existing scheduler dulu
+            stopScheduler();
+
+            const scheduledTime = document.getElementById('scheduledTime').value;
+            const repeatMinutes = parseInt(document.getElementById('repeatMinutes').value) || 0;
+
+            if (!scheduledTime) {
+                addLog('❌ ERROR: Sila set masa!');
+                return;
+            }
+
+            // Kira masa first run
+            const now = new Date();
+            const [hours, minutes] = scheduledTime.split(':');
+            const scheduledDate = new Date();
+            scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+            // Kalau masa dah lepas, set untuk esok
+            if (scheduledDate <= now) {
+                scheduledDate.setDate(scheduledDate.getDate() + 1);
+            }
+
+            const timeUntilFirstRun = scheduledDate - now;
+            addLog(`⏰ Scheduler STARTED - First run at ${scheduledDate.toLocaleTimeString()}`);
+
+            // Schedule first run
+            setTimeout(() => {
+                sendWebhook();
+                addLog(`⏰ Scheduled message sent at ${scheduledDate.toLocaleTimeString()}`);
+
+                // Kalau repeat, set interval
+                if (repeatMinutes > 0) {
+                    schedulerInterval = setInterval(() => {
+                        sendWebhook();
+                        addLog(`🔄 Repeat sent (every ${repeatMinutes} min)`);
+                    }, repeatMinutes * 60 * 1000);
+                    
+                    addLog(`🔄 Repeat every ${repeatMinutes} minutes`);
+                }
+            }, timeUntilFirstRun);
+
+            // Countdown display
+            updateCountdown(scheduledDate);
+            countdownInterval = setInterval(() => updateCountdown(scheduledDate), 1000);
+        }
+
+        // ========== COUNTDOWN ==========
+        function updateCountdown(targetTime) {
+            const now = new Date();
+            const diff = targetTime - now;
+            
+            if (diff <= 0) {
+                document.getElementById('countdownDisplay').innerHTML = '⏳ Sending now...';
+                return;
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            document.getElementById('countdownDisplay').innerHTML = 
+                `⏳ Next send: ${hours}h ${minutes}m ${seconds}s`;
+        }
+
+        // ========== STOP SCHEDULER ==========
+        function stopScheduler() {
+            if (schedulerInterval) {
+                clearInterval(schedulerInterval);
+                schedulerInterval = null;
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            document.getElementById('countdownDisplay').innerHTML = '⏳ Scheduler: OFF';
+            addLog('🛑 Scheduler STOPPED');
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopScheduler();
+        });
+    </script>
+</body>
+</html>
